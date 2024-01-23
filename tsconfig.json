@@ -9,8 +9,7 @@
     "incremental": true,
     "esModuleInterop": true,
     "typeRoots": ["node_modules/@types", "src/types"],
-    "types": ["@types/jest", "@types/node"],
+    "types": ["node"],
     "forceConsistentCasingInFileNames": true
-  },
-  "exclude": ["**/*.test.ts", "jest.config.ts"]
+  }
 }

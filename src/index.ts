@@ -3,7 +3,6 @@ import crypto from 'crypto';
 
 const defaultPort = 4352;
 const maxRetries = 5;
-let iii = 0;
 
 export default class Projector {
   readonly url: string;
@@ -242,6 +241,24 @@ export default class Projector {
               break;
             default:
               rej(val.slice(0, -1));
+          }
+        })
+        .catch(rej);
+    });
+  }
+
+  getLamp(): Promise<number> {
+    return new Promise((res, rej) => {
+      this._sendCmd('LAMP', '?')
+        .then((val) => {
+          const length = val.indexOf(' ');
+          if (length === -1) {
+            rej(val);
+          } else {
+            const hours = parseInt(val.slice(0, length));
+            if (hours.toString().padStart(length, '0') === val.slice(0, length)) {
+              res(hours);
+            } else rej(val);
           }
         })
         .catch(rej);
