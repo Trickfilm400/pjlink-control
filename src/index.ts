@@ -14,6 +14,7 @@ export default class Projector {
   private _info: string | null = null;
   private _class: string | null = null;
   private _initialized = false;
+  private _protocolVersion2Commands = ["SVOL", "IRES", "FREZ"];
   constructor(url: string, password: string, cb?: () => void, port?: number) {
     this.url = url;
     if (port == undefined) {
@@ -101,6 +102,8 @@ export default class Projector {
     retry?: number,
     err?: any
   ): Promise<void | string> {
+    let PROTOCOL_VERSION = "%1"
+    if (this._protocolVersion2Commands.includes(cmd.toUpperCase())) PROTOCOL_VERSION = "%2"
     if (!retry) retry = 0;
     return new Promise((res, rej) => {
       if (retry! > maxRetries) {
@@ -121,7 +124,7 @@ export default class Projector {
                 .createHash('md5')
                 .update(buf.slice(9, -1).toString() + this._password)
                 .digest('hex') +
-                '%1' +
+                PROTOCOL_VERSION +
                 cmd +
                 ' ' +
                 argString +
@@ -129,12 +132,12 @@ export default class Projector {
             )
           );
         } else if (buf.slice(0, 8).toString() == 'PJLINK 0') {
-          socket.write(Buffer.from('%1' + cmd + ' ' + argString + '\r'));
+          socket.write(Buffer.from(PROTOCOL_VERSION + cmd + ' ' + argString + '\r'));
         } else {
           ending = true;
           this._killSocket(socket)
             .then(() => {
-              if (buf.slice(0, 7).toString() == '%1' + cmd + '=') {
+              if (buf.slice(0, 7).toString() == PROTOCOL_VERSION + cmd + '=') {
                 if (!query) {
                   if (buf.slice(7, 9).toString() == 'OK') {
                     res();
@@ -291,6 +294,136 @@ export default class Projector {
           }
         })
         .catch(rej);
+    });
+  }
+
+  setVolume(state: "increase" | "decrease") {
+    switch (state) {
+      case 'increase':
+        return this._sendCmd('SVOL', 1).catch(console.error);
+        break;
+      case 'decrease':
+        return this._sendCmd('SVOL', 0).catch(console.error);
+        break;
+      default:
+        return new Promise((res, rej) => {
+          rej('Invalid volume instruction');
+        });
+    }
+  }
+
+  setVideoMute(state: "on" | "off") {
+    switch (state) {
+      case 'on':
+        return this._sendCmd('AVMT', 11).catch(console.error);
+        break;
+      case 'off':
+        return this._sendCmd('AVMT', 10).catch(console.error);
+        break;
+      default:
+        return new Promise((res, rej) => {
+          rej('Invalid video mute instruction');
+        });
+    }
+  }
+
+  setAudioMute(state: "on" | "off") {
+    switch (state) {
+      case 'on':
+        return this._sendCmd('AVMT', 21).catch(console.error);
+        break;
+      case 'off':
+        return this._sendCmd('AVMT', 20).catch(console.error);
+        break;
+      default:
+        return new Promise((res, rej) => {
+          rej('Invalid audio mute instruction');
+        });
+    }
+  }
+
+  setVideoAndAudioMute(state: "on" | "off") {
+    switch (state) {
+      case 'on':
+        return this._sendCmd('AVMT', 31).catch(console.error);
+        break;
+      case 'off':
+        return this._sendCmd('AVMT', 30).catch(console.error);
+        break;
+      default:
+        return new Promise((res, rej) => {
+          rej('Invalid video and audio mute instruction');
+        });
+    }
+  }
+
+
+  getVideoAndAudioMute(): Promise<{ videoMuted: boolean, audioMuted: boolean }> {
+    return new Promise((res, rej) => {
+      let result: {videoMuted: boolean, audioMuted: boolean} = <never>{
+        videoMuted: null,
+        audioMuted: null
+      }
+      this._sendCmd('AVMT', '?')
+          .then((val) => {
+            switch (val.slice(0, -1)) {
+              case '11':
+                result.audioMuted = false
+                result.videoMuted = true
+                break;
+              case '21':
+                result.audioMuted = true
+                result.videoMuted = false
+                break;
+              case '31':
+                result.audioMuted = true
+                result.videoMuted = true
+                break;
+              case '30':
+                result.audioMuted = false
+                result.videoMuted = false
+                break;
+              default:
+                rej(val.slice(0, -1));
+                return;
+            }
+            res(result)
+          })
+          .catch(rej);
+    });
+  }
+
+  getInputResolution(): Promise<string> {
+    return new Promise((res, rej) => {
+      this._sendCmd('IRES', '?')
+          .then((val) => {
+            res(val)
+          })
+          .catch(rej);
+    });
+  }
+  setFreeze(state: "on" | "off") {
+    switch (state) {
+      case 'on':
+        return this._sendCmd('FREZ', 1).catch(console.error);
+        break;
+      case 'off':
+        return this._sendCmd('FREZ', 0).catch(console.error);
+        break;
+      default:
+        return new Promise((res, rej) => {
+          rej('Invalid freeze instruction');
+        });
+    }
+  }
+
+  getFreeze(): Promise<boolean> {
+    return new Promise((res, rej) => {
+      this._sendCmd('FREZ', '?')
+          .then((val) => {
+            res(val === "1")
+          })
+          .catch(rej);
     });
   }
 

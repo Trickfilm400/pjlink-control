@@ -4,7 +4,7 @@ Minimal package for controlling projectors with the PJLink protocol.
 
 
 ## Basic Usage
-```
+```typescript
 import Projector from 'pjlink-control'; //TypeScript
 const Projector = require('pjlink-control').default; //JavaScript
 
