@@ -427,6 +427,31 @@ export default class Projector {
     });
   }
 
+  getAvailableInputList() {
+    return new Promise<string[]>((resolve, reject) => {
+      this._sendCmd("INST", "?").then(res => {
+        //example output: 11 12 32 33 41 52 56 57 58
+        const inputs = res.trim().split(" ")
+        resolve(inputs)
+      }).catch(reject);
+    });
+}
+
+  setInputByDirectNumber(input: number) {
+    return new Promise<void>((res, rej) => {
+      this._sendCmd('INPT', input)
+          .then(() => {
+            res();
+          })
+          .catch((err) => {
+            if (err == 'Projector returned error: ERR2\r') {
+              rej(`Input "${input}" does not exist`);
+            } else rej(err);
+          });
+    });
+  }
+
+
   input(
     type: 'RGB' | 'Video' | 'Digital' | 'Storage' | 'Network' | number,
     number?: number
