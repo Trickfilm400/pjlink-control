@@ -1,6 +1,6 @@
 {
-  "name": "pjlink-control",
-  "version": "1.0.3",
+  "name": "@trickfilm400/pjlink-control",
+  "version": "1.1.0",
   "description": "Control for PJLink projectors",
   "main": "dist/index.js",
   "scripts": {
@@ -9,9 +9,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/markschwartzkopf/pjlink-control.git"
+    "url": "git+https://github.com/Trickfilm400/pjlink-control.git"
   },
   "author": "Mark Schwartzkopf",
+  "contributors": ["Trickfilm400"],
   "license": "GPL-3.0",
   "devDependencies": {
     "@types/node": "^17.0.45",
