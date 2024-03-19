@@ -14,7 +14,7 @@ export default class Projector {
   private _info: string | null = null;
   private _class: string | null = null;
   private _initialized = false;
-  private _protocolVersion2Commands = ["SVOL", "IRES", "FREZ"];
+  private _protocolVersion2Commands = ['SVOL', 'IRES', 'FREZ'];
   constructor(url: string, password: string, cb?: () => void, port?: number) {
     this.url = url;
     if (port == undefined) {
@@ -79,7 +79,7 @@ export default class Projector {
             socket.destroy();
             rej('Projector failed to close socket');
           }
-        }, 200);
+        }, 1000);
       }
     });
   }
@@ -102,8 +102,11 @@ export default class Projector {
     retry?: number,
     err?: any
   ): Promise<void | string> {
-    let PROTOCOL_VERSION = "%1"
-    if (this._protocolVersion2Commands.includes(cmd.toUpperCase())) PROTOCOL_VERSION = "%2"
+    const protocolVersion = this._protocolVersion2Commands.includes(
+      cmd.toUpperCase()
+    )
+      ? '%2'
+      : '%1';
     if (!retry) retry = 0;
     return new Promise((res, rej) => {
       if (retry! > maxRetries) {
@@ -112,7 +115,7 @@ export default class Projector {
       }
       let query = false;
       if (arg == '?') query = true;
-      const argString = arg == '?' ? '?' : arg.toString();
+      const argString = arg.toString();
       let ending = false;
       let socket = new net.Socket();
       socket.on('data', (buf) => {
@@ -124,7 +127,7 @@ export default class Projector {
                 .createHash('md5')
                 .update(buf.slice(9, -1).toString() + this._password)
                 .digest('hex') +
-                PROTOCOL_VERSION +
+                protocolVersion +
                 cmd +
                 ' ' +
                 argString +
@@ -132,12 +135,14 @@ export default class Projector {
             )
           );
         } else if (buf.slice(0, 8).toString() == 'PJLINK 0') {
-          socket.write(Buffer.from(PROTOCOL_VERSION + cmd + ' ' + argString + '\r'));
+          socket.write(
+            Buffer.from(protocolVersion + cmd + ' ' + argString + '\r')
+          );
         } else {
           ending = true;
           this._killSocket(socket)
             .then(() => {
-              if (buf.slice(0, 7).toString() == PROTOCOL_VERSION + cmd + '=') {
+              if (buf.slice(0, 7).toString() == protocolVersion + cmd + '=') {
                 if (!query) {
                   if (buf.slice(7, 9).toString() == 'OK') {
                     res();
@@ -219,9 +224,8 @@ export default class Projector {
         return this._sendCmd('POWR', 0).catch(console.error);
         break;
       default:
-        return new Promise((res, rej) => {
-          rej('Invalid power command');
-        });
+        return Promise.reject('Invalid power command');
+        break;
     }
   }
 
@@ -259,7 +263,9 @@ export default class Projector {
             rej(val);
           } else {
             const hours = parseInt(val.slice(0, length));
-            if (hours.toString().padStart(length, '0') === val.slice(0, length)) {
+            if (
+              hours.toString().padStart(length, '0') === val.slice(0, length)
+            ) {
               res(hours);
             } else rej(val);
           }
@@ -297,7 +303,7 @@ export default class Projector {
     });
   }
 
-  setVolume(state: "increase" | "decrease") {
+  setVolume(state: 'increase' | 'decrease') {
     switch (state) {
       case 'increase':
         return this._sendCmd('SVOL', 1).catch(console.error);
@@ -306,13 +312,12 @@ export default class Projector {
         return this._sendCmd('SVOL', 0).catch(console.error);
         break;
       default:
-        return new Promise((res, rej) => {
-          rej('Invalid volume instruction');
-        });
+        return Promise.reject('Invalid volume instruction');
+        break;
     }
   }
 
-  setVideoMute(state: "on" | "off") {
+  setVideoMute(state: 'on' | 'off') {
     switch (state) {
       case 'on':
         return this._sendCmd('AVMT', 11).catch(console.error);
@@ -321,13 +326,12 @@ export default class Projector {
         return this._sendCmd('AVMT', 10).catch(console.error);
         break;
       default:
-        return new Promise((res, rej) => {
-          rej('Invalid video mute instruction');
-        });
+        return Promise.reject('Invalid video mute instruction');
+        break;
     }
   }
 
-  setAudioMute(state: "on" | "off") {
+  setAudioMute(state: 'on' | 'off') {
     switch (state) {
       case 'on':
         return this._sendCmd('AVMT', 21).catch(console.error);
@@ -336,13 +340,12 @@ export default class Projector {
         return this._sendCmd('AVMT', 20).catch(console.error);
         break;
       default:
-        return new Promise((res, rej) => {
-          rej('Invalid audio mute instruction');
-        });
+        return Promise.reject('Invalid audio mute instruction');
+        break;
     }
   }
 
-  setVideoAndAudioMute(state: "on" | "off") {
+  setVideoAndAudioMute(state: 'on' | 'off') {
     switch (state) {
       case 'on':
         return this._sendCmd('AVMT', 31).catch(console.error);
@@ -351,58 +354,59 @@ export default class Projector {
         return this._sendCmd('AVMT', 30).catch(console.error);
         break;
       default:
-        return new Promise((res, rej) => {
-          rej('Invalid video and audio mute instruction');
-        });
+        return Promise.reject('Invalid video and audio mute instruction');
+        break;
     }
   }
 
-
-  getVideoAndAudioMute(): Promise<{ videoMuted: boolean, audioMuted: boolean }> {
+  getVideoAndAudioMute(): Promise<{
+    videoMuted: boolean;
+    audioMuted: boolean;
+  }> {
     return new Promise((res, rej) => {
-      let result: {videoMuted: boolean, audioMuted: boolean} = <never>{
+      let result: { videoMuted: boolean; audioMuted: boolean } = <never>{
         videoMuted: null,
-        audioMuted: null
-      }
+        audioMuted: null,
+      };
       this._sendCmd('AVMT', '?')
-          .then((val) => {
-            switch (val.slice(0, -1)) {
-              case '11':
-                result.audioMuted = false
-                result.videoMuted = true
-                break;
-              case '21':
-                result.audioMuted = true
-                result.videoMuted = false
-                break;
-              case '31':
-                result.audioMuted = true
-                result.videoMuted = true
-                break;
-              case '30':
-                result.audioMuted = false
-                result.videoMuted = false
-                break;
-              default:
-                rej(val.slice(0, -1));
-                return;
-            }
-            res(result)
-          })
-          .catch(rej);
+        .then((val) => {
+          switch (val.slice(0, -1)) {
+            case '11':
+              result.audioMuted = false;
+              result.videoMuted = true;
+              break;
+            case '21':
+              result.audioMuted = true;
+              result.videoMuted = false;
+              break;
+            case '31':
+              result.audioMuted = true;
+              result.videoMuted = true;
+              break;
+            case '30':
+              result.audioMuted = false;
+              result.videoMuted = false;
+              break;
+            default:
+              rej(val.slice(0, -1));
+              return;
+          }
+          res(result);
+        })
+        .catch(rej);
     });
   }
 
   getInputResolution(): Promise<string> {
     return new Promise((res, rej) => {
       this._sendCmd('IRES', '?')
-          .then((val) => {
-            res(val)
-          })
-          .catch(rej);
+        .then((val) => {
+          res(val);
+        })
+        .catch(rej);
     });
   }
-  setFreeze(state: "on" | "off") {
+  setFreeze(state: 'on' | 'off') {
     switch (state) {
       case 'on':
         return this._sendCmd('FREZ', 1).catch(console.error);
@@ -411,46 +415,46 @@ export default class Projector {
         return this._sendCmd('FREZ', 0).catch(console.error);
         break;
       default:
-        return new Promise((res, rej) => {
-          rej('Invalid freeze instruction');
-        });
+        return Promise.reject('Invalid freeze instruction');
+        break;
     }
   }
 
   getFreeze(): Promise<boolean> {
     return new Promise((res, rej) => {
       this._sendCmd('FREZ', '?')
-          .then((val) => {
-            res(val === "1")
-          })
-          .catch(rej);
+        .then((val) => {
+          res(val === '1');
+        })
+        .catch(rej);
     });
   }
 
   getAvailableInputList() {
-    return new Promise<string[]>((resolve, reject) => {
-      this._sendCmd("INST", "?").then(res => {
-        //example output: 11 12 32 33 41 52 56 57 58
-        const inputs = res.trim().split(" ")
-        resolve(inputs)
-      }).catch(reject);
+    return new Promise<string[]>((res, rej) => {
+      this._sendCmd('INST', '?')
+        .then((list) => {
+          //example output: 11 12 32 33 41 52 56 57 58
+          const inputs = list.trim().split(' ');
+          res(inputs);
+        })
+        .catch(rej);
     });
-}
+  }
 
   setInputByDirectNumber(input: number) {
     return new Promise<void>((res, rej) => {
       this._sendCmd('INPT', input)
-          .then(() => {
-            res();
-          })
-          .catch((err) => {
-            if (err == 'Projector returned error: ERR2\r') {
-              rej(`Input "${input}" does not exist`);
-            } else rej(err);
-          });
+        .then(() => {
+          res();
+        })
+        .catch((err) => {
+          if (err == 'Projector returned error: ERR2\r') {
+            rej(`Input "${input}" does not exist`);
+          } else rej(err);
+        });
     });
   }
-
 
   input(
     type: 'RGB' | 'Video' | 'Digital' | 'Storage' | 'Network' | number,
